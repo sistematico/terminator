@@ -9,11 +9,11 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 try:
     from credentials import bot_token, bot_url
 except ModuleNotFoundError:
-    bot_token = int(os.environ.get('BOT_TOKEN'))
-    bot_url = int(os.environ.get('WEBHOOK_URL', 'https://terminator.fly.dev'))
+    bot_token = os.environ.get('BOT_TOKEN')
+    bot_url = os.environ.get('WEBHOOK_URL', 'https://terminator.fly.dev')
 
 bot_port = int(os.environ.get('PORT', '8443'))
-bot_mode = int(os.environ.get('ENV', 'production'))
+bot_mode = os.environ.get('ENV', 'production')
 
 # Enable logging
 # CRITICAL ERROR WARNING INFO DEBUG NOTSET
