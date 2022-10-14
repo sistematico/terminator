@@ -1,6 +1,6 @@
 # The Terminator Bot
 
-<p style="text-align: center">
+<p align="center">
     <img src="./assets/john_connor.jpg" alt="The Terminator Bot" />
 </p>
 
