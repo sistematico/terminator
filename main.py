@@ -8,7 +8,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 
 try:
     from credentials import bot_token, bot_url
-except ImportError:
+except ModuleNotFoundError:
     bot_token = int(os.environ.get('BOT_TOKEN'))
     bot_url = int(os.environ.get('WEBHOOK_URL', 'https://terminator.fly.dev'))
 
