@@ -10,7 +10,7 @@ processes = []
 
 [env]
   ENV = "production"
-  WEBHOOK_URL = "https://terminator.fly.dev"
+  WEBHOOK_URL = "https://terminator.fly.dev/"
 
 [experimental]
   allowed_public_ports = []
