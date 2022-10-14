@@ -6,7 +6,8 @@ kill_timeout = 5
 processes = []
 
 [deploy]
-  strategy = "immediate"
+  strategy = "rolling"
+  #strategy = "immediate"
 
 [env]
   ENV = "production"
