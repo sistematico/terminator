@@ -17,21 +17,19 @@ bot_port = int(os.environ.get('PORT', '8443'))
 bot_mode = os.environ.get('ENV', 'production')
 db_file = r'data/database.db'
 
-if os.path.exists(db_file):
-    os.remove(db_file)
-else:
-    print(f"O arquivo {db_file} não existe.")
+# if os.path.exists(db_file):
+#     os.remove(db_file)
+# else:
+#     print(f"O arquivo {db_file} não existe.")
 
 
 def create_tables(db):
     connection = sqlite3.connect(db)
     cursor = connection.cursor()
 
-    cursor.execute("PRAGMA foreign_keys = ON;")
+    cursor.execute("PRAGMA foreign_keys = ON")
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS grupos (id integer PRIMARY KEY, group_id integer, nome text, flags integer);
-    """)
+    cursor.execute("""CREATE TABLE IF NOT EXISTS grupos (id integer PRIMARY KEY, group_id integer, nome text, flags integer)""")
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS usuarios (
@@ -43,7 +41,7 @@ def create_tables(db):
            likes integer,
            gid integer,
            FOREIGN KEY(gid) REFERENCES grupos (id)
-        );
+        )
     """)
 
     connection.close()
@@ -51,10 +49,8 @@ def create_tables(db):
 
 create_tables(db_file)
 
-# Enable logging
-# CRITICAL ERROR WARNING INFO DEBUG NOTSET
-# loglevel = 'logging.WARNING' if bot_mode == 'production' else 'logging.DEBUG'
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
+loglevel = 'logging.WARNING' if bot_mode == 'production' else 'logging.DEBUG'
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=loglevel)
 logger = logging.getLogger(__name__)
 
 
@@ -64,58 +60,20 @@ def start(update: Update, context: CallbackContext) -> None:
 
 
 def add_warn(user, chat):
+    warnings = get_warnings(user, chat) + 1
     connection = sqlite3.connect(db_file)
     cursor = connection.cursor()
-    cursor.execute("SELECT user_id, warnings, gid FROM usuarios WHERE user_id = ? AND gid = ?", (user.id, chat.id,))
 
+    #cursor.execute("SELECT user_id, warnings, gid FROM usuarios WHERE user_id = ? AND gid = ?", (user.id, chat.id,))
 
-    # cursor.execute("""
-    #     INSERT INTO usuarios (user_id, apelido, nome)
-    #     VALUES (?,?,?)
-    # """, (1, fr'@{user.username}', user.first_name))
+    cursor.execute("""
+        INSERT OR REPLACE INTO usuarios(user_id, warnings) 
+        VALUES (?, ?)
+    """, (user.id, warnings))
 
-    # cursor.execute(f"""
-    #     INSERT OR REPLACE INTO usuarios (warnings)
-    #     values (SELECT * FROM usuarios WHERE user_id = {user.id} AND warnings = warnings + 1)
-    #     RETURNING *;
-    # """)
-
-    # cursor.execute("""
-    # INSERT INTO usuarios (userID, errorMsg, sessionStartTimestamp)
-    # VALUES(?, ?, ?)
-    # ON CONFLICT(userID, sessionStartTimestamp)
-    # DO UPDATE SET errorMsg = 'An error occured'
-    # WHERE errorMsg IS NOT NULL
-    # RETURNING *;
-    # """, ())
-
-    # sql = r"INSERT OR REPLACE INTO usuarios(user_id, warnings) VALUES ((SELECT user_id FROM usuarios WHERE user_id = %i), %i, ifnull((SELECT user_id, warnings FROM usuarios WHERE user_id = %i), 0 ) + 1) RETURNING *;"
-    sql = r"INSERT OR REPLACE INTO usuarios(user_id, warnings) VALUES ((SELECT user_id FROM usuarios WHERE user_id = %i), %i, ifnull((SELECT warnings FROM usuarios WHERE user_id = %i), 0 ) + 1)"
-
-    ret = cursor.execute(fr"INSERT OR REPLACE INTO usuarios(user_id, warnings) VALUES ((SELECT warnings FROM usuarios WHERE user_id = {user.id}), {user.id}, ifnull((SELECT user_id FROM usuarios WHERE user_id = {user.id}), 0 ) + 1)")
-
-    return ret
-
-
-
-
-    # cursor.execute("""
-    #     INSERT OR REPLACE INTO usuarios (user_id, warnings) values (?, ?);
-    # """, (user.id, 20,))
-
-    # connection.commit()
     connection.close()
 
-    # warnings = cursor.fetchone()
-
-    # if warnings:
-    #     return warnings[0].warnings
-    # else:
-    return 20
-
-
-#
-# UPDATE product SET price = price + 50
+    return warnings
 
 
 def get_warnings(user, chat) -> int:
