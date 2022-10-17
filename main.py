@@ -6,7 +6,6 @@ import logging
 import sqlite3
 from telegram import Update, ForceReply
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
-
 try:
     from credentials import bot_token, bot_url
 except ModuleNotFoundError:
@@ -17,30 +16,37 @@ bot_port = int(os.environ.get('PORT', '8443'))
 bot_mode = os.environ.get('ENV', 'production')
 db_file = r'data/database.db'
 
-# if os.path.exists(db_file):
-#     os.remove(db_file)
-# else:
-#     print(f"O arquivo {db_file} não existe.")
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.ERROR)
+logger = logging.getLogger(__name__)
 
+if os.path.exists(db_file):
+    os.remove(db_file)
+else:
+    print(f"O arquivo {db_file} não existe.")
 
-def create_tables(db):
-    connection = sqlite3.connect(db)
+def create_tables(banco):
+    connection = sqlite3.connect(banco)
+    #print(connection.total_changes)
+
     cursor = connection.cursor()
 
     cursor.execute("PRAGMA foreign_keys = ON")
 
-    cursor.execute("""CREATE TABLE IF NOT EXISTS grupos (id integer PRIMARY KEY, group_id integer, nome text, flags integer)""")
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS grupos 
+        (id integer PRIMARY KEY, gid integer, nome text, flags integer DEFAULT 111)
+    """)
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS usuarios (
            id integer PRIMARY KEY,
-           user_id integer,
+           uid integer,
+           gid integer,
            apelido text,
            nome text,
            warnings integer,
            likes integer,
-           gid integer,
-           FOREIGN KEY(gid) REFERENCES grupos (id)
+           FOREIGN KEY(gid) REFERENCES grupos (gid)
         )
     """)
 
@@ -49,37 +55,30 @@ def create_tables(db):
 
 create_tables(db_file)
 
-loglevel = 'logging.WARNING' if bot_mode == 'production' else 'logging.DEBUG'
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=loglevel)
-logger = logging.getLogger(__name__)
-
-
 def start(update: Update, context: CallbackContext) -> None:
     user = update.effective_user
     update.message.reply_markdown_v2(fr'Olá {user.mention_markdown_v2()}\!', reply_markup=ForceReply(selective=True), )
 
-
-def add_warn(user, chat):
-    warnings = get_warnings(user, chat) + 1
-    connection = sqlite3.connect(db_file)
-    cursor = connection.cursor()
-
-    #cursor.execute("SELECT user_id, warnings, gid FROM usuarios WHERE user_id = ? AND gid = ?", (user.id, chat.id,))
-
-    cursor.execute("""
-        INSERT OR REPLACE INTO usuarios(user_id, warnings) 
-        VALUES (?, ?)
-    """, (user.id, warnings))
-
-    connection.close()
-
-    return warnings
-
-
 def get_warnings(user, chat) -> int:
     connection = sqlite3.connect(db_file)
     cursor = connection.cursor()
-    cursor.execute("SELECT user_id, warnings, gid FROM usuarios WHERE user_id = ? AND gid = ?", (user.id, chat.id,))
+
+    # cursor.execute("""
+    #     SELECT user_id, warnings, gid 
+    #     FROM usuarios 
+    #     WHERE user_id = :user_id AND gid = :chat_id""", 
+    #     { "user_id": user.id, "chat_id":  chat.id }
+    # )
+
+    cursor.execute("""
+        SELECT uid, warnings, gid 
+        FROM usuarios 
+        WHERE uid = :user_id AND gid = :chat_id""", 
+        { "user_id": user.id, "chat_id":  chat.id }
+    )
+
+    print(rows)
+
     rows = cursor.fetchone()
     connection.close()
 
@@ -88,33 +87,18 @@ def get_warnings(user, chat) -> int:
     else:
         return 0
 
+def add_warn(user, chat):
+    warnings = get_warnings(user, chat) + 1
+    connection = sqlite3.connect(db_file)
+    cursor = connection.cursor()
 
-def warn2(update: Update, context: CallbackContext) -> None:
-    if update.message.reply_to_message:
-        chat = update.message.chat
-        user = update.message.reply_to_message.from_user
+    #cursor.execute("SELECT user_id, warnings, gid FROM usuarios WHERE user_id = ? AND gid = ?", (user.id, chat.id,))
+    cursor.execute("INSERT INTO grupos (gid, nome) VALUES (?, ?)", (abs(chat.id), chat.title))
+    cursor.execute("INSERT INTO usuarios (uid, warnings) VALUES (?, ?)", (user.id, warnings))
+    
+    connection.close()
 
-        #user = update.effective_user
-        #chat = update.effective_chat
-
-        connection = sqlite3.connect(db_file)
-        cursor = connection.cursor()
-
-        cursor.execute("""
-            INSERT OR IGNORE INTO grupos (group_id, nome, flags) VALUES (?, ?, ?)
-        """, (chat.id, chat.username, 111))
-
-        # inserindo dados na tabela
-        cursor.execute("""
-            INSERT INTO usuarios (user_id, apelido, nome)
-            VALUES (?,?,?)
-        """, (1, fr'@{user.username}', user.first_name))
-
-        connection.commit()
-        connection.close()
-
-        context.bot.send_message(update.message.chat_id, fr'O usuário @{user.username} agora tem 1 warning!')
-
+    return warnings
 
 def warn(update: Update, context: CallbackContext) -> None:
     if update.message.reply_to_message:
@@ -122,16 +106,24 @@ def warn(update: Update, context: CallbackContext) -> None:
         user = update.message.reply_to_message.from_user
         warnings = add_warn(user, chat)
 
+        print("++++++++++++++++++++++++++++++++++++++")
+        print("User Object")
+        print(user)
+
         context.bot.send_message(update.message.chat_id, fr'O usuário @{user.username} agora tem {warnings} warnings!')
 
 
 def warns(update: Update, context: CallbackContext) -> None:
-    user = update.effective_user
-    chat = update.effective_chat
+    user = update.message.from_user
+    chat = update.message.chat
+
+    print("----------------------------------")
+    print("User Object")
+    print(user)
 
     connection = sqlite3.connect(db_file)
     cursor = connection.cursor()
-    cursor.execute("SELECT * FROM usuarios WHERE user_id = ?", (user.id,))
+    cursor.execute("SELECT * FROM usuarios WHERE user_id = :user_id", { "user_id": int(user.id) })
     rows = cursor.fetchone()
 
     if rows:
@@ -139,8 +131,7 @@ def warns(update: Update, context: CallbackContext) -> None:
     else:
         context.bot.send_message(update.message.chat_id, "Nenhum warn.")
 
-
-    # connection.close()
+    connection.close()
 
 
 def main() -> None:
