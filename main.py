@@ -19,41 +19,29 @@ db_file = r'data/database.db'
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
-if os.path.exists(db_file):
-    os.remove(db_file)
-else:
-    print(f"O arquivo {db_file} não existe.")
+connection = sqlite3.connect(db_file)
+cursor = connection.cursor()
+cursor.execute("PRAGMA foreign_keys = ON")
 
-def create_tables(banco):
-    connection = sqlite3.connect(banco)
-    #print(connection.total_changes)
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS grupos 
+    (id integer PRIMARY KEY, gid integer UNIQUE, nome text, flags integer DEFAULT 111)
+""")
 
-    cursor = connection.cursor()
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS usuarios (
+        id integer PRIMARY KEY,
+        uid integer UNIQUE,
+        gid integer,
+        apelido text,
+        nome text,
+        warnings integer NOT NULL DEFAULT 0,
+        likes integer NOT NULL DEFAULT 0,
+        FOREIGN KEY(gid) REFERENCES grupos (gid)
+    )
+""")
 
-    cursor.execute("PRAGMA foreign_keys = ON")
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS grupos 
-        (id integer PRIMARY KEY, gid integer, nome text, flags integer DEFAULT 111)
-    """)
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS usuarios (
-           id integer PRIMARY KEY,
-           uid integer,
-           gid integer,
-           apelido text,
-           nome text,
-           warnings integer,
-           likes integer,
-           FOREIGN KEY(gid) REFERENCES grupos (gid)
-        )
-    """)
-
-    connection.close()
-
-
-create_tables(db_file)
+connection.close()
 
 def start(update: Update, context: CallbackContext) -> None:
     user = update.effective_user
@@ -63,53 +51,72 @@ def get_warnings(user, chat) -> int:
     connection = sqlite3.connect(db_file)
     cursor = connection.cursor()
 
-    # cursor.execute("""
-    #     SELECT user_id, warnings, gid 
-    #     FROM usuarios 
-    #     WHERE user_id = :user_id AND gid = :chat_id""", 
-    #     { "user_id": user.id, "chat_id":  chat.id }
-    # )
-
-    cursor.execute("""
-        SELECT uid, warnings, gid 
-        FROM usuarios 
-        WHERE uid = :user_id AND gid = :chat_id""", 
-        { "user_id": user.id, "chat_id":  chat.id }
-    )
-
-    print(rows)
+    cursor.execute("SELECT uid, gid, warnings FROM usuarios WHERE uid = ? AND gid = ? LIMIT 1", (abs(user.id), abs(chat.id)))
 
     rows = cursor.fetchone()
     connection.close()
 
     if rows:
-        return rows[0].warnings
+        return rows[2]
     else:
         return 0
 
 def add_warn(user, chat):
-    warnings = get_warnings(user, chat) + 1
     connection = sqlite3.connect(db_file)
     cursor = connection.cursor()
 
-    #cursor.execute("SELECT user_id, warnings, gid FROM usuarios WHERE user_id = ? AND gid = ?", (user.id, chat.id,))
-    cursor.execute("INSERT INTO grupos (gid, nome) VALUES (?, ?)", (abs(chat.id), chat.title))
-    cursor.execute("INSERT INTO usuarios (uid, warnings) VALUES (?, ?)", (user.id, warnings))
+    cursor.execute("INSERT OR IGNORE INTO grupos (gid, nome) VALUES (?, ?)", (abs(chat.id), chat.title))
     
+    # query = cursor.execute("""
+    #     insert or replace into usuarios (uid, gid, warnings) values (
+    #     (SELECT uid FROM usuarios WHERE uid = :user_id),
+    #     (SELECT gid FROM usuarios WHERE gid = :group_id),
+    #     (SELECT warnings FROM usuarios WHERE uid = :user_id AND gid = :group_id) + 1)
+    #     RETURNING warnings;""", 
+    #     { "user_id": abs(user.id), "group_id": abs(chat.id) }
+    # )
+
+    cursor.execute("""
+        INSERT INTO usuarios (uid, gid, warnings)
+        VALUES (
+            :uid, 
+            :gid, 
+            :idade
+        )
+        ON CONFLICT(uid) 
+        DO UPDATE SET warnings = warnings + 1
+        RETURNING warnings;""", 
+        {"nome": "Lucas", "email": "sistematico@gmail.com", "idade": 39}
+    )
+
+# (select warnings from usuarios where uid = :user_id) + 1) 
+    
+
+#     insert or replace into Book (ID, Name, TypeID, Level, Seen) values (
+#    (select ID from Book where Name = "SearchName"),
+#    "SearchName",
+#     5,
+#     6,
+#     (select Seen from Book where Name = "SearchName"));
+
+
+    warnings = query.fetchone()
+    connection.commit()
     connection.close()
 
-    return warnings
+    print(warnings[0])
+
+    if warnings:
+        return warnings[0]
+    else:
+        return 1   
+
 
 def warn(update: Update, context: CallbackContext) -> None:
     if update.message.reply_to_message:
-        chat = update.message.chat
         user = update.message.reply_to_message.from_user
+        chat = update.message.chat
         warnings = add_warn(user, chat)
-
-        print("++++++++++++++++++++++++++++++++++++++")
-        print("User Object")
-        print(user)
-
         context.bot.send_message(update.message.chat_id, fr'O usuário @{user.username} agora tem {warnings} warnings!')
 
 
@@ -117,17 +124,13 @@ def warns(update: Update, context: CallbackContext) -> None:
     user = update.message.from_user
     chat = update.message.chat
 
-    print("----------------------------------")
-    print("User Object")
-    print(user)
-
     connection = sqlite3.connect(db_file)
     cursor = connection.cursor()
-    cursor.execute("SELECT * FROM usuarios WHERE user_id = :user_id", { "user_id": int(user.id) })
+    cursor.execute("SELECT * FROM usuarios WHERE uid = ? AND gid = ?", (int(user.id), int(chat.id)))
     rows = cursor.fetchone()
 
     if rows:
-        context.bot.send_message(update.message.chat_id, str(rows[0]))
+        context.bot.send_message(update.message.chat_id, str(rows))
     else:
         context.bot.send_message(update.message.chat_id, "Nenhum warn.")
 
@@ -142,7 +145,7 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("warns", warns))
     # dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, bio))
 
-    if bot_mode == 'development':
+    if bot_mode == 'development' or bot_mode == 'dev':
         updater.start_polling()
 
     if bot_mode == 'production':
