@@ -3,3 +3,4 @@ venv/
 credentials.py
 *.log
 pickle
+__pycache__
