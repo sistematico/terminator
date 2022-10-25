@@ -8,17 +8,13 @@ MAX_WARNINGS = 3
 class Warn:
     def __init__(self):
         self.db = Database()
-        # with Database() as db:
-        # db.create_table()
 
     def get_warnings(self, user, chat) -> int:
-        self.db.fetchone("SELECT warnings FROM usuarios WHERE uid = ? AND gid = ? LIMIT 1",
-                         (abs(user.id), abs(chat.id)))
+        self.db.fetchone("SELECT warnings FROM usuarios WHERE uid = ? AND gid = ? LIMIT 1", (abs(user.id), abs(chat.id)))
 
     def add_warn(self, user, chat, motivo):
-        self.db.insert_or_replace()
-
-        sql1 = """
+        sql_g = "INSERT OR IGNORE INTO grupos (gid, nome) VALUES (?, ?)"
+        sql_u = """
             INSERT OR REPLACE INTO usuarios (uid,gid,warnings) 
             VALUES (
                 :uid,
@@ -30,21 +26,12 @@ class Warn:
             RETURNING warnings;
         """
 
-        sql2 = "INSERT OR IGNORE INTO grupos (gid, nome) VALUES (?, ?)"
+        self.db.execute(sql_g, (abs(chat.id), chat.title))
+        warnings = self.db.execute(sql_u, {"uid": abs(user.id), "gid": abs(chat.id)})
 
-        sql = [
-            {"query": " ".join(sql1.splitlines()), "params": {"uid": abs(user.id), "gid": abs(chat.id)}},
-            {"query": sql2, "params": (abs(chat.id), chat.title)}
-        ]
-
-        # for s in sql:
-        #     print(s['params']) 
-
-        self.db.executemany(sql)
+        return warnings if warnings != None else 1
 
     def rm_warn(self, user, chat) -> int:
-        self.db.connect()
-
         return self.db.execute("""
             REPLACE INTO usuarios (uid,gid,warnings) 
             VALUES (
@@ -57,16 +44,12 @@ class Warn:
             RETURNING warnings;
         """, {"uid": abs(user.id), "gid": abs(chat.id)})
 
-        self.db.commit()
-        self.db.close()
-
     def awarn(self, update, context) -> None:
         if update.message.reply_to_message:
             user = update.message.reply_to_message.from_user
             chat = update.message.chat
             context.user_data['info'] = user
-            motivo = update.message.text.partition(' ')[2] if update.message.text.partition(' ')[
-                2] else 'Sem motivo específico'
+            motivo = update.message.text.partition(' ')[2] if update.message.text.partition(' ')[2] else 'Sem motivo específico'
             warnings = self.add_warn(user, chat, motivo)
 
             context.bot.delete_message(chat.id, update.message.message_id)
