@@ -6,12 +6,7 @@ from terminator.config import *
 
 class Database:
     def __init__(self):
-        try:
-            self.connection = sqlite3.connect(DB_FILE, check_same_thread=False, isolation_level=None)  # Auto-Commit
-            self.cursor = self.connection.cursor()
-
-        except sqlite3.Error as e:
-            print("Error connecting to database: " + e.args[0])
+        self.open()
 
     def __enter__(self):
         return self
@@ -19,11 +14,23 @@ class Database:
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
+    def open(self):
+        if self.connection:
+            try:
+                self.connection = sqlite3.connect(DB_FILE, check_same_thread=False, isolation_level=None)  # Auto-Commit
+                self.cursor = self.connection.cursor()
+
+            except sqlite3.Error as e:
+                print("Error connecting to database: " + e.args[0])
+
     def close(self):
         if self.connection:
             self.cursor.close()
             self.connection.close()
             self.connection = None
+
+    def install(self):
+        self.create_table()
 
     def execute(self, payload, data):
         self.cursor.execute(payload, data)
