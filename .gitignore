@@ -2,5 +2,7 @@
 venv/
 credentials.py
 *.log
+*.old
+*.old.*
 pickle
 __pycache__

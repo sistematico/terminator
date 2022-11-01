@@ -1,6 +1,6 @@
 from functools import wraps
 
-def is_restricted(func):
+def get_me(func):
     @wraps(func)
     def wrapped(update, context, *args, **kwargs):
         for admin in context.bot.get_chat_administrators(update.effective_chat.id):
@@ -9,7 +9,7 @@ def is_restricted(func):
         return
     return wrapped
 
-def is_group(func):
+def group(func):
     @wraps(func)
     def wrapped(update, context, *args, **kwargs):
         
@@ -24,4 +24,15 @@ def is_group(func):
             return
 
         return func(update, context)
+    return wrapped
+
+#@get_me
+@group
+def restricted(func):
+    @wraps(func)
+    def wrapped(update, context, *args, **kwargs):
+        for admin in context.bot.get_chat_administrators(update.effective_chat.id):
+            if admin.user.id == update.effective_user.id:
+                return func(update, context, *args, **kwargs)
+        return
     return wrapped

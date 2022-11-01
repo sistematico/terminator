@@ -1,20 +1,22 @@
 PRAGMA foreign_keys = ON;
         
 CREATE TABLE IF NOT EXISTS grupos(
-  id integer PRIMARY KEY, 
-  gid integer UNIQUE, 
-  nome text, 
-  flags integer DEFAULT 111
+  id INTEGER PRIMARY KEY, 
+  gid INTEGER UNIQUE, 
+  nome TEXT, 
+  max_warn INTEGER NOT NULL DEFAULT 3, 
+  flags INTEGER DEFAULT 111
 );
 
 CREATE TABLE IF NOT EXISTS usuarios(
-  id integer PRIMARY KEY,
-  uid integer,
-  gid integer,
-  apelido text,
-  nome text,
-  warnings integer NOT NULL DEFAULT 0,
-  likes integer NOT NULL DEFAULT 0,
+  id INTEGER PRIMARY KEY,
+  uid INTEGER,
+  gid INTEGER,
+  apelido TEXT,
+  nome TEXT,
+  warnings INTEGER NOT NULL DEFAULT 0,
+  likes INTEGER NOT NULL DEFAULT 0,
+  ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY(gid) REFERENCES grupos (gid)
 );
 
