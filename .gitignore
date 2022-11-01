@@ -6,3 +6,4 @@ credentials.py
 *.old.*
 pickle
 __pycache__
+.commit

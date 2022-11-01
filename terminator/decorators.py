@@ -1,6 +1,6 @@
 from functools import wraps
 
-def get_me(func):
+def is_me(func):
     @wraps(func)
     def wrapped(update, context, *args, **kwargs):
         if context.bot.get_me().id != update.effective_user.id:

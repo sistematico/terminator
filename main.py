@@ -3,24 +3,24 @@
 import logging
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext, CallbackQueryHandler, MessageHandler, Filters
-from terminator.config import BOT_MODE, BOT_PORT, BOT_URL, BOT_TOKEN
-from terminator.decorators import restricted, get_me, group, not_group
+from config.definitions import BOT_MODE, BOT_PORT, BOT_URL, BOT_TOKEN
+from terminator.decorators import restricted, group
 from terminator.warn import awarn, rwarn, cwarn
-from terminator.admin import flush, drop, install
+from terminator.admin import flush, drop, install, uninstall
+from terminator.config import status
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # 👍
 
-@group
 @restricted
 def admin(update: Update, context: CallbackContext) -> None:
-    if "getme" in update.message.text:
-        print(context.bot.get_me().id)
-
-    if "install" in update.message.text:
+    if update.message.text.startswith("install"):
         install(update, context)
+
+    if "uninstall" in update.message.text:
+        uninstall(update, context)
 
     if "flush" in update.message.text:
         flush(update, context)
@@ -28,9 +28,15 @@ def admin(update: Update, context: CallbackContext) -> None:
     if "drop" in update.message.text:
         drop(update, context)
 
-@get_me
+# Config System
 @group
 @restricted
+def config(update: Update, context: CallbackContext) -> None:
+    status(update, context)
+
+# Warn System
+#@group
+#@restricted
 def warn(update: Update, context: CallbackContext) -> None:
     awarn(update, context)
 
@@ -41,6 +47,7 @@ def main() -> None:
     updater = Updater(BOT_TOKEN, use_context=True)
     dispatcher = updater.dispatcher
 
+    dispatcher.add_handler(CommandHandler("status", config))
     dispatcher.add_handler(CommandHandler("warn", warn))
     dispatcher.add_handler(CommandHandler("warns", warns))
     dispatcher.add_handler(CallbackQueryHandler(rwarn))

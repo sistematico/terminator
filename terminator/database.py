@@ -1,12 +1,18 @@
 #!/usr/bin/env python
 
+import os
 import sqlite3
-from terminator.config import *
+from config.definitions import *
 
 
 class Database:
     def __init__(self):
-        self.open()
+        try:
+            self.connection = sqlite3.connect(DB_FILE, check_same_thread=False, isolation_level=None)  # Auto-Commit
+            self.cursor = self.connection.cursor()
+
+        except sqlite3.Error as e:
+            print("Error connecting to database: " + e.args[0])
 
     def __enter__(self):
         return self
@@ -15,13 +21,12 @@ class Database:
         self.close()
 
     def open(self):
-        if self.connection:
-            try:
-                self.connection = sqlite3.connect(DB_FILE, check_same_thread=False, isolation_level=None)  # Auto-Commit
-                self.cursor = self.connection.cursor()
+        try:
+            self.connection = sqlite3.connect(DB_FILE, check_same_thread=False, isolation_level=None)  # Auto-Commit
+            self.cursor = self.connection.cursor()
 
-            except sqlite3.Error as e:
-                print("Error connecting to database: " + e.args[0])
+        except sqlite3.Error as e:
+            print("Error connecting to database: " + e.args[0])
 
     def close(self):
         if self.connection:
@@ -30,7 +35,10 @@ class Database:
             self.connection = None
 
     def install(self):
-        self.create_table()
+        if not self.connection:
+            self.open()
+
+        return self.create_table()
 
     def execute(self, payload, data):
         self.cursor.execute(payload, data)
@@ -49,6 +57,11 @@ class Database:
         self.cursor.execute(query, data)
         row = self.cursor.fetchone()
         return row[0] if row else False
+
+    def many(self, query, data):
+        self.cursor.execute(query, data)
+        row = self.cursor.fetchone()
+        return row if row else False
 
     def all(self, query, data):
         self.cursor.execute(query, data)
