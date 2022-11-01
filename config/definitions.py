@@ -1,12 +1,12 @@
 import os
 
 try:
-    from terminator.credentials import BOT_TOKEN, BOT_URL
+    from terminator.credentials import BOT_TOKEN, BOT_URL, BOT_PORT
 except ModuleNotFoundError:
     BOT_TOKEN = os.environ.get('BOT_TOKEN')
-    BOT_URL = os.environ.get('WEBHOOK_URL', 'https://terminator.fly.dev/')
+    BOT_URL = os.environ.get('BOT_URL', 'https://terminator.fly.dev/')
 
-BOT_PORT = int(os.environ.get('PORT', '8443'))
+BOT_PORT = int(os.environ.get('BOT_PORT', 8443))
 BOT_MODE = os.environ.get('ENV', 'production')
 
 ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))

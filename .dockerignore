@@ -1,0 +1,16 @@
+# flyctl launch added from .gitignore
+**/.idea
+**/venv
+**/credentials.py
+**/*.log
+**/*.old
+**/*.old.*
+**/pickle
+**/__pycache__
+**/.commit
+
+# flyctl launch added from data/.gitignore
+data/**/*
+data/**/img/*
+!data/**/img
+!data/**/*.sql
