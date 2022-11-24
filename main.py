@@ -7,13 +7,11 @@ from config.definitions import BOT_MODE, BOT_PORT, BOT_URL, BOT_TOKEN
 from terminator.decorators import restricted, group
 from terminator.warn import awarn, rwarn, cwarn
 from terminator.admin import flush, drop, install, uninstall
-from terminator.config import status
+from terminator.config import status, get_flags, set_flags
 from terminator.utils import hora_certa
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# 👍
 
 def parse_text(update: Update, context: CallbackContext) -> None:
     if "hora certa" in update.message.text.lower():
@@ -27,29 +25,44 @@ def pong(update: Update, context: CallbackContext) -> None:
     context.bot.delete_message(update.message.chat_id, update.message.message_id)
     context.bot.delete_message(update.message.chat_id, update.message.reply_to_message.message_id)
 
+@group
 @restricted
 def admin(update: Update, context: CallbackContext) -> None:
     if update.message.text.startswith("install"):
         install(update, context)
-
-    if "uninstall" in update.message.text:
+    elif "uninstall" in update.message.text:
         uninstall(update, context)
-
-    if "flush" in update.message.text:
+    elif "flush" in update.message.text:
         flush(update, context)
-
-    if "drop" in update.message.text:
+    elif "drop" in update.message.text:
         drop(update, context)
+    else:
+        return
 
-# Config System
 @group
 @restricted
-def config(update: Update, context: CallbackContext) -> None:
+def c_status(update: Update, context: CallbackContext) -> None:
     status(update, context)
 
+@group
+@restricted
+def get_c_flags(update: Update, context: CallbackContext) -> None:
+    if update.message.text.partition(' ')[2]:
+        flags = update.message.text.partition(' ')[2]
+        get_flags(update, context, flags)
+    else:
+        get_flags(update, context)
+
+
+@group
+@restricted
+def set_c_flags(update: Update, context: CallbackContext) -> None:
+    if update.message.text.partition(' ')[2]:
+        set_flags(update, update.message.text.partition(' ')[2])
+
 # Warn System
-#@group
-#@restricted
+@group
+@restricted
 def warn(update: Update, context: CallbackContext) -> None:
     awarn(update, context)
 
@@ -61,10 +74,13 @@ def main() -> None:
     dispatcher = updater.dispatcher
 
     dispatcher.add_handler(CommandHandler("ping", pong))
-    dispatcher.add_handler(CommandHandler("status", config))
+    dispatcher.add_handler(CommandHandler("status", c_status))
+    dispatcher.add_handler(CommandHandler("get", get_c_flags))
+    dispatcher.add_handler(CommandHandler("set", set_c_flags))
     dispatcher.add_handler(CommandHandler("warn", warn))
     dispatcher.add_handler(CommandHandler("warns", warns))
     dispatcher.add_handler(CallbackQueryHandler(rwarn))
+    dispatcher.add_handler(MessageHandler(Filters.text , admin))
     dispatcher.add_handler(MessageHandler(Filters.text , parse_text))
 
     # Message is text and contains a link

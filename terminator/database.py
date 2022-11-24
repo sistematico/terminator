@@ -53,6 +53,22 @@ class Database:
         row = self.cursor.fetchone()
         return row[0] if row else False
 
+    def edit(self, table, update, where, data):
+        sql = "UPDATE {} SET {} WHERE {}".format(table, update, where)
+        return self.cursor.execute(sql, data)
+
+    def upsert(self, table, fields, conflict, update, where, data):
+        sql = f"""
+            INSERT INTO {table} ({fields})
+            VALUES (?, ?)
+            ON CONFLICT ({conflict}) DO UPDATE SET
+            {update}            
+            WHERE {where};
+        """
+        
+        return self.cursor.execute(sql, data)
+
+
     def get(self, query, data):
         self.cursor.execute(query, data)
         row = self.cursor.fetchone()

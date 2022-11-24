@@ -12,7 +12,7 @@ def is_me(func):
 def group(func):
     @wraps(func)
     def wrapped(update, context, *args, **kwargs):
-        
+       
         if hasattr(update, 'message'):
             chat_type = update.message.chat.type
         elif hasattr(update, 'effective_chat'):

@@ -7,7 +7,7 @@ except ModuleNotFoundError:
     BOT_URL = os.environ.get('BOT_URL', 'https://terminator.fly.dev/')
 
 BOT_PORT = int(os.environ.get('BOT_PORT', 8443))
-BOT_MODE = os.environ.get('ENV', 'production')
+BOT_MODE = os.environ.get('MODE', 'production')
 
 ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
 DATA_DIR = os.path.join(ROOT_DIR, 'data')
